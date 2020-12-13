@@ -31,7 +31,13 @@ export abstract class AbstractRMQ extends EventEmitter {
       this.channel.on("close", (reason) => {
         console.log(format(`[Channel closed]: reason ${reason}`));
         process.nextTick(() => {
-          this.connect();
+          console.log(this.timeout);
+          if (!this.timeout) {
+            this.timeout = setTimeout(async () => {
+              this.timeout = undefined;
+              await this.connect();
+            }, 5000);
+          }
         });
       });
       this.connection.on("error", (err) => {
@@ -53,6 +59,7 @@ export abstract class AbstractRMQ extends EventEmitter {
       }
 
       this.timeout = setTimeout(async () => {
+        this.timeout = undefined;
         await this.connect();
       }, 5000);
     }

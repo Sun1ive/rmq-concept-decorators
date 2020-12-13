@@ -1,5 +1,4 @@
 import { Message } from "amqplib";
-import { v4 } from "uuid";
 import { RabbitMQInstance, Bind, Consume } from "../../lib/decorators";
 import { AbstractRMQ } from "./abstract.rabbitmq";
 
@@ -10,9 +9,11 @@ export class RabbiMQService extends AbstractRMQ {
   }
 
   @Bind({
-    exchange: process.env.RABBITMQ_EXCHANGE,
-    queue: v4(),
+    exchange: "d-" + process.env.RABBITMQ_EXCHANGE,
     routingKey: "",
+    assertExchange: {
+      exchangeType: "direct",
+    },
     queueOptions: {
       autoDelete: true,
       durable: false,
@@ -32,9 +33,11 @@ export class RabbiMQService extends AbstractRMQ {
   }
 
   @Bind({
-    exchange: "justin_pms",
-    queue: v4(),
+    exchange: process.env.RABBITMQ_EXCHANGE,
     routingKey: "",
+    assertExchange: {
+      exchangeType: "fanout",
+    },
     queueOptions: {
       autoDelete: true,
       durable: false,
