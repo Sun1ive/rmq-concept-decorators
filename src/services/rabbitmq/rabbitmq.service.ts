@@ -1,124 +1,12 @@
-import { Channel, Message, Options } from "amqplib";
+import { Message } from "amqplib";
 import { v4 } from "uuid";
+import { RabbitMQInstance, Bind, Consume } from "../../lib/decorators";
 import { AbstractRMQ } from "./abstract.rabbitmq";
-
-// TODO: reconnect?
-// TODO: bind real queue
-// TODO: something instead constructor for binding
-
-const bind_key = "BIND_KEY";
-const consume_key = "CONSUME_KEY";
-
-interface Params {
-  exchange?: string;
-  queue?: string;
-  queueOptions?: Options.AssertQueue;
-  routingKey?: string;
-}
-
-const bindMap = new Set<string>();
-const consumeMap = new Set<string>();
-
-function RabbitMQInstance() {
-  return (cls): any => {
-    return class extends cls {
-      constructor() {
-        super();
-        this.on("rmq_connect", async () => {
-          console.log("DECORATOR PROCESSING");
-          await Promise.all(
-            Array.from(bindMap).map(async (key) => {
-              try {
-                const meta = Reflect.getMetadata(bind_key, cls.prototype, key);
-                if (meta) {
-                  const { queue: queueName, exchange, routingKey, queueOptions } = meta;
-                  const channel: Channel = this.channel;
-                  const { queue } = await channel.assertQueue(queueName, queueOptions);
-                  await channel.bindQueue(queue, exchange, routingKey);
-                  await channel.consume(queue, this[key].bind(this));
-
-                  console.log(this[key]);
-                  console.log({ meta });
-                }
-              } catch (error) {
-                console.log("Bind Error", error);
-              }
-            })
-          );
-
-          await Promise.all(
-            Array.from(consumeMap).map(async (key) => {
-              try {
-                const meta = Reflect.getMetadata(consume_key, cls.prototype, key);
-                if (meta) {
-                  await (this.channel as Channel).consume(meta.queue, this[key].bind(this));
-                  console.log(this[key]);
-
-                  console.log(meta);
-                }
-              } catch (error) {
-                console.log("consume error", error);
-              }
-            })
-          );
-        });
-      }
-    };
-  };
-}
-
-function Bind({ exchange, queue, routingKey = "", queueOptions }: Params) {
-  return (target, key, descriptor) => {
-    console.log({
-      exchange,
-      queue,
-      routingKey,
-      target,
-      key,
-      descriptor,
-    });
-
-    bindMap.add(key);
-
-    Reflect.defineMetadata(
-      bind_key,
-      {
-        exchange,
-        queue: queue ?? v4(),
-        routingKey,
-        queueOptions,
-      },
-      target,
-      key
-    );
-  };
-}
-
-type ConsumeParams = {
-  queue: string;
-};
-
-function Consume({ queue }: ConsumeParams) {
-  return (target, prop, descriptor) => {
-    consumeMap.add(prop);
-
-    Reflect.defineMetadata(
-      consume_key,
-      {
-        queue,
-      },
-      target,
-      prop
-    );
-  };
-}
 
 @RabbitMQInstance()
 export class RabbiMQService extends AbstractRMQ {
-  public constructor() {
+  public constructor(private readonly _config: any) {
     super();
-
-    console.log(process.env);
   }
 
   @Bind({
@@ -127,6 +15,7 @@ export class RabbiMQService extends AbstractRMQ {
     routingKey: "",
     queueOptions: {
       autoDelete: true,
+      durable: false,
     },
   })
   public handle(msg: Message | null) {
@@ -148,6 +37,7 @@ export class RabbiMQService extends AbstractRMQ {
     routingKey: "",
     queueOptions: {
       autoDelete: true,
+      durable: false,
     },
   })
   public wpHandle(msg: Message | null) {

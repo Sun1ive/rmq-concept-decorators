@@ -1,16 +1,17 @@
 {
   "compilerOptions": {
-    "outDir": "dist",
+    "outDir": "lib/dist",
     "target": "ES2017",
     "moduleResolution": "Node",
     "module": "CommonJS",
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "baseUrl": ".",
     "declaration": true,
     "inlineSourceMap": true,
     "types": ["reflect-metadata", "node"],
     "incremental": true
   },
-  "include": ["src/**/*.ts"]
+  "files": ["src/lib/index.ts"]
 }

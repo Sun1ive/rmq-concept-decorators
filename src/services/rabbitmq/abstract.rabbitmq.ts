@@ -1,20 +1,20 @@
 import { Channel, connect, Connection } from "amqplib";
 import { EventEmitter } from "events";
 import { format } from "util";
+import { rmqEvent } from "../../lib";
 
 export abstract class AbstractRMQ extends EventEmitter {
-  protected channel: Channel;
-  protected connection: Connection;
-  protected connected: Promise<void>;
-  protected terminated: boolean = false;
-  protected timeout: NodeJS.Timeout | undefined;
+  public channel: Channel;
+  public connection: Connection;
+  public terminated: boolean = false;
+  public timeout: NodeJS.Timeout | undefined;
 
   protected constructor() {
     super();
     this.connect();
   }
 
-  protected async connect(): Promise<void> {
+  public async connect(): Promise<void> {
     try {
       console.log(format(AbstractRMQ.name, "Connecting"));
 
@@ -35,11 +35,12 @@ export abstract class AbstractRMQ extends EventEmitter {
         });
       });
       this.connection.on("error", (err) => {
-        console.log(format("[Connection error]: ", err));
+        console.log(format("[Connection error]:", err));
       });
 
       console.log(format(AbstractRMQ.name, "Connected"));
-      this.emit("rmq_connect", true);
+
+      this.emit(rmqEvent, true);
     } catch (error) {
       console.log(format("On Connect error", error));
 
@@ -57,14 +58,18 @@ export abstract class AbstractRMQ extends EventEmitter {
     }
   }
 
-  protected async dispose(): Promise<void> {
+  public async dispose(): Promise<void> {
     try {
-      this.channel.removeAllListeners();
+      this.terminated = true;
+      if (this.timeout) {
+        clearTimeout(this.timeout);
+        this.timeout = undefined;
+      }
+
       await this.channel.close();
-      this.connection.removeAllListeners();
       await this.connection.close();
     } catch (error) {
-      console.log(format("Dispose error ", error));
+      console.log(format("Dispose error", error));
     }
   }
 }

@@ -4,7 +4,10 @@ import { RabbiMQService } from "./services/rabbitmq/rabbitmq.service";
 
 async function start() {
   try {
-    const rmq = new RabbiMQService();
+    const config = {
+      port: 3000,
+    };
+    const rmq = new RabbiMQService(config);
 
     const onCleanUp = async (sig: string) => {
       console.log("Process exit by %s", sig);
