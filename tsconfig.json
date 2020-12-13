@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "outDir": "dist",
+    "target": "ES2017",
+    "moduleResolution": "Node",
+    "module": "CommonJS",
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "declaration": true,
+    "inlineSourceMap": true,
+    "types": ["reflect-metadata"],
+    "incremental": true
+  },
+  "include": ["src/**/*.ts"]
+}
