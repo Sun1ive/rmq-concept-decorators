@@ -110,7 +110,7 @@ export function RabbitMQInstance() {
                 let {
                   queue = "",
                   exchange,
-                  routingKeys = "",
+                  routingKeys = [""],
                   queueOptions,
                   assertExchange,
                 } = meta();
@@ -129,6 +129,7 @@ export function RabbitMQInstance() {
                     queue,
                     queueOptions
                   );
+
                   await this.channel.bindQueue(assertedQueue, exchange, rKey);
                   if (typeof (this as any)[key] === "function") {
                     await this.channel.consume(assertedQueue, (this as any)[key].bind(this));
