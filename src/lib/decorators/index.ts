@@ -5,7 +5,8 @@ import debug from "debug";
 
 export const bind_key = Symbol("BIND_KEY");
 export const consume_key = Symbol("CONSUME_KEY");
-export const assert_key = Symbol("ASSERT_KEY");
+export const assert_exchange_key = Symbol("ASSERT_EXCHANGE_KEY");
+export const assert_queue_key = Symbol("ASSERT_QUEUE_KEY");
 export const rmqEvent = "RMQ_CONNECT";
 
 const logger = debug("@temabit/rmq");
@@ -69,7 +70,7 @@ export function RabbitMQInstance() {
       constructor(...args: any[]) {
         super(...args);
         this.on(rmqEvent, async () => {
-          const assertPersisted = persistMetadata(cls.prototype, assert_key);
+          const assertPersisted = persistMetadata(cls.prototype, assert_exchange_key);
           for (const key in assertPersisted) {
             const meta: undefined | (() => AssertExchangeParams) = assertPersisted[key];
             try {
@@ -84,6 +85,20 @@ export function RabbitMQInstance() {
               }
             } catch (error) {
               logger(format("AssertExchange error", error));
+            }
+          }
+
+          const assertQueuePersisted = persistMetadata(cls.prototype, assert_queue_key);
+          for (const key in assertQueuePersisted) {
+            const meta: undefined | (() => ConsumeParams) = assertQueuePersisted[key];
+            try {
+              if (typeof meta === "function") {
+                const { queue, assertQueue } = meta();
+                const assertedQueue = await this.channel.assertQueue(queue, assertQueue);
+                (this as any)[key] = assertedQueue;
+              }
+            } catch (error) {
+              logger(format("AssertQueue error", error));
             }
           }
 
@@ -164,11 +179,18 @@ export function Consume(params: () => ConsumeParams): DefinedPropertyDecorator<s
 
 export function AssertExchange(params: () => AssertExchangeParams): PropertyDecorator {
   return (target, key) => {
-    const metadata = persistMetadata(target, assert_key) as Record<
+    const metadata = persistMetadata(target, assert_exchange_key) as Record<
       string,
       () => AssertExchangeParams
     >;
 
+    metadata[key as string] = params;
+  };
+}
+
+export function AssertQueue(params: () => ConsumeParams): PropertyDecorator {
+  return (target, key) => {
+    const metadata = persistMetadata(target, assert_queue_key);
     metadata[key as string] = params;
   };
 }
