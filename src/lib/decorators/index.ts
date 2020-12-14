@@ -5,6 +5,7 @@ import debug from "debug";
 
 export const bind_key = Symbol("BIND_KEY");
 export const consume_key = Symbol("CONSUME_KEY");
+export const assert_key = Symbol("ASSERT_KEY");
 export const rmqEvent = "RMQ_CONNECT";
 
 const logger = debug("@temabit/rmq");
@@ -18,9 +19,13 @@ export type DefinedPropertyDecorator<
   descriptor: Target[Key] extends ValueType ? TypedPropertyDescriptor<Target[Key]> : never
 ) => PropertyDescriptor | void;
 
-interface AssertExchange {
+interface ExchangeOptions {
   exchangeType: "direct" | "topic" | "fanout" | "headers";
   exchangeOptions?: Options.AssertExchange;
+}
+
+interface AssertExchangeParams extends ExchangeOptions {
+  exchange: string;
 }
 
 interface BindParams {
@@ -28,10 +33,11 @@ interface BindParams {
   queue?: string;
   queueOptions?: Options.AssertQueue;
   routingKey?: string;
-  assertExchange?: AssertExchange;
+  assertExchange?: ExchangeOptions;
 }
 interface ConsumeParams {
   queue: string;
+  assertQueue?: Options.AssertQueue;
 }
 
 interface AbstractConstructor<Type = any> extends Function {
@@ -63,6 +69,24 @@ export function RabbitMQInstance() {
       constructor(...args: any[]) {
         super(...args);
         this.on(rmqEvent, async () => {
+          const assertPersisted = persistMetadata(cls.prototype, assert_key);
+          for (const key in assertPersisted) {
+            const meta: undefined | (() => AssertExchangeParams) = assertPersisted[key];
+            try {
+              if (typeof meta === "function") {
+                const { exchange, exchangeType, exchangeOptions } = meta();
+                const assertedExchange = await this.channel.assertExchange(
+                  exchange,
+                  exchangeType,
+                  exchangeOptions
+                );
+                (this as any)[key] = assertedExchange;
+              }
+            } catch (error) {
+              logger(format("AssertExchange error", error));
+            }
+          }
+
           const persisted = persistMetadata(cls.prototype, bind_key);
           for (const key in persisted) {
             try {
@@ -106,7 +130,10 @@ export function RabbitMQInstance() {
             const meta: undefined | (() => ConsumeParams) = consumePersisted[key];
             try {
               if (typeof meta === "function") {
-                let { queue } = meta();
+                const { queue, assertQueue } = meta();
+                if (assertQueue) {
+                  await this.channel.assertQueue(queue, assertQueue);
+                }
                 if (typeof (this as any)[key] === "function") {
                   await this.channel.consume(queue, (this as any)[key].bind(this));
                 }
@@ -132,5 +159,16 @@ export function Consume(params: () => ConsumeParams): DefinedPropertyDecorator<s
   return (target, prop, descriptor) => {
     const metadata = persistMetadata(target, consume_key) as Record<string, () => ConsumeParams>;
     metadata[prop as string] = params;
+  };
+}
+
+export function AssertExchange(params: () => AssertExchangeParams): PropertyDecorator {
+  return (target, key) => {
+    const metadata = persistMetadata(target, assert_key) as Record<
+      string,
+      () => AssertExchangeParams
+    >;
+
+    metadata[key as string] = params;
   };
 }
