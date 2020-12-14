@@ -32,7 +32,7 @@ export class RabbiMQService extends AbstractRMQ {
 
   @Bind(() => ({
     exchange: "d-" + process.env.RABBITMQ_EXCHANGE,
-    routingKey: "",
+    routingKey: [""],
     assertExchange: {
       exchangeType: "direct",
     },
@@ -56,7 +56,7 @@ export class RabbiMQService extends AbstractRMQ {
 
   @Bind(() => ({
     exchange: process.env.RABBITMQ_EXCHANGE as string,
-    routingKey: "",
+    routingKey: [""],
     assertExchange: {
       exchangeType: "fanout",
     },

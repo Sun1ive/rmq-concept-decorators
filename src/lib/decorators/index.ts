@@ -33,7 +33,7 @@ interface BindParams {
   exchange: string;
   queue?: string;
   queueOptions?: Options.AssertQueue;
-  routingKey?: string;
+  routingKeys?: string[];
   assertExchange?: ExchangeOptions;
 }
 interface ConsumeParams {
@@ -102,20 +102,19 @@ export function RabbitMQInstance() {
             }
           }
 
-          const persisted = persistMetadata(cls.prototype, bind_key);
-          for (const key in persisted) {
+          const persistedBind = persistMetadata(cls.prototype, bind_key);
+          for (const key in persistedBind) {
             try {
-              const meta: undefined | (() => BindParams) = persisted[key];
+              const meta: undefined | (() => BindParams) = persistedBind[key];
               if (typeof meta === "function") {
-                logger({ meta: meta(), key });
                 let {
                   queue = "",
                   exchange,
-                  routingKey = "",
+                  routingKeys = "",
                   queueOptions,
                   assertExchange,
                 } = meta();
-                logger({ queue, routingKey });
+                logger({ meta: meta(), key });
 
                 if (assertExchange) {
                   await this.channel.assertExchange(
@@ -125,14 +124,15 @@ export function RabbitMQInstance() {
                   );
                 }
 
-                const { queue: assertedQueue } = await this.channel.assertQueue(
-                  queue,
-                  queueOptions
-                );
-
-                await this.channel.bindQueue(queue, exchange, routingKey ?? "");
-                if (typeof (this as any)[key] === "function") {
-                  await this.channel.consume(assertedQueue, (this as any)[key].bind(this));
+                for (const rKey of routingKeys) {
+                  const { queue: assertedQueue } = await this.channel.assertQueue(
+                    queue,
+                    queueOptions
+                  );
+                  await this.channel.bindQueue(assertedQueue, exchange, rKey);
+                  if (typeof (this as any)[key] === "function") {
+                    await this.channel.consume(assertedQueue, (this as any)[key].bind(this));
+                  }
                 }
               }
             } catch (error) {
