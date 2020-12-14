@@ -1,10 +1,13 @@
 import { Options } from "amqplib/properties";
 import { format } from "util";
 import { AbstractRMQService } from "../interfaces/abstract.rmq.interface";
+import debug from "debug";
 
 export const bind_key = Symbol("BIND_KEY");
 export const consume_key = Symbol("CONSUME_KEY");
 export const rmqEvent = "RMQ_CONNECT";
+
+const logger = debug("@temabit/rmq");
 
 export type DefinedPropertyDecorator<
   Name extends string | symbol = string | symbol,
@@ -21,14 +24,14 @@ interface AssertExchange {
 }
 
 interface BindParams {
-  exchange: string;
+  exchange: () => string;
   queue?: string;
   queueOptions?: Options.AssertQueue;
   routingKey?: string;
   assertExchange?: AssertExchange;
 }
 interface ConsumeParams {
-  queue: string;
+  queue: () => string;
 }
 
 interface AbstractConstructor<Type = any> extends Function {
@@ -64,26 +67,24 @@ export function RabbitMQInstance() {
           for (const key in persisted) {
             try {
               const meta: BindParams | undefined = persisted[key];
-              console.log({ meta, key });
+              logger({ meta, key });
               let { queue: queueName, exchange, routingKey, queueOptions, assertExchange } = meta;
 
               if (assertExchange) {
-                const asserted = await this.channel.assertExchange(
-                  exchange,
+                await this.channel.assertExchange(
+                  exchange(),
                   assertExchange.exchangeType,
                   assertExchange.exchangeOptions
                 );
-
-                exchange = asserted.exchange;
               }
 
               const { queue } = await this.channel.assertQueue(queueName, queueOptions);
-              await this.channel.bindQueue(queue, exchange, routingKey);
+              await this.channel.bindQueue(queue, exchange(), routingKey);
               if (typeof this[key] === "function") {
                 await this.channel.consume(queue, this[key].bind(this));
               }
             } catch (error) {
-              console.log(format("Bind Error", error));
+              logger(format("Bind Error", error));
             }
           }
 
@@ -92,10 +93,10 @@ export function RabbitMQInstance() {
             const meta: ConsumeParams | undefined = consumePersisted[key];
             try {
               if (typeof this[key] === "function") {
-                await this.channel.consume(meta.queue, this[key].bind(this));
+                await this.channel.consume(meta.queue(), this[key].bind(this));
               }
             } catch (error) {
-              console.log(format("Consume error", error));
+              logger(format("Consume error", error));
             }
           }
         });
@@ -113,15 +114,6 @@ export function Bind({
 }: BindParams): DefinedPropertyDecorator<string, Function> {
   return (target, key, descriptor) => {
     const metadata = persistMetadata(target, bind_key) as Record<string, BindParams>;
-
-    console.log({
-      queue,
-      queueOptions,
-      exchange,
-      assertExchange,
-      routingKey,
-    });
-
     metadata[key as string] = {
       exchange,
       queue,
