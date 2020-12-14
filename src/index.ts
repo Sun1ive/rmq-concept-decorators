@@ -1,4 +1,4 @@
-require("dotenv").config();
+// require("dotenv").config();
 import "reflect-metadata";
 import { RabbiMQService } from "./services/rabbitmq/rabbitmq.service";
 

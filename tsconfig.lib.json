@@ -9,7 +9,10 @@
     "emitDecoratorMetadata": true,
     "baseUrl": ".",
     "declaration": true,
+    "strict": true,
+    "alwaysStrict": true,
     "inlineSourceMap": true,
+    "strictPropertyInitialization": false,
     "types": ["reflect-metadata", "node"],
     "incremental": true
   },

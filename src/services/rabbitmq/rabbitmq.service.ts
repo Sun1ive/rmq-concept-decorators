@@ -1,3 +1,4 @@
+require("dotenv").config();
 import { Message } from "amqplib";
 import { AbstractRMQ } from "../../lib";
 import { RabbitMQInstance, Bind, Consume } from "../../lib/decorators";
@@ -16,7 +17,7 @@ const c = {
       rabbitHeartbeat: 30,
       rabbitHost: process.env.RABBITMQ_HOST,
       rabbitPassword: process.env.RABBITMQ_PASSWORD,
-      rabbitPort: +process.env.RABBITMQ_PORT,
+      rabbitPort: +process.env.RABBITMQ_PORT!,
       rabbitUser: process.env.RABBITMQ_USER,
       rabbitVHost: process.env.RABBITMQ_VHOST,
     } as Config;
@@ -29,8 +30,8 @@ export class RabbiMQService extends AbstractRMQ {
     super(new Logger(), c);
   }
 
-  @Bind({
-    exchange: () => "d-" + process.env.RABBITMQ_EXCHANGE,
+  @Bind(() => ({
+    exchange: "d-" + process.env.RABBITMQ_EXCHANGE,
     routingKey: "",
     assertExchange: {
       exchangeType: "direct",
@@ -39,7 +40,7 @@ export class RabbiMQService extends AbstractRMQ {
       autoDelete: true,
       durable: false,
     },
-  })
+  }))
   public handle(msg: Message | null) {
     if (!msg) {
       return;
@@ -53,8 +54,8 @@ export class RabbiMQService extends AbstractRMQ {
     }
   }
 
-  @Bind({
-    exchange: () => process.env.RABBITMQ_EXCHANGE,
+  @Bind(() => ({
+    exchange: process.env.RABBITMQ_EXCHANGE as string,
     routingKey: "",
     assertExchange: {
       exchangeType: "fanout",
@@ -63,7 +64,7 @@ export class RabbiMQService extends AbstractRMQ {
       autoDelete: true,
       durable: false,
     },
-  })
+  }))
   public wpHandle(msg: Message | null) {
     if (!msg) {
       return;
@@ -77,7 +78,7 @@ export class RabbiMQService extends AbstractRMQ {
     }
   }
 
-  @Consume({ queue: () => "test" })
+  @Consume(() => ({ queue: "test" }))
   public consumeHandler(msg: Message | null) {
     if (!msg) {
       return;

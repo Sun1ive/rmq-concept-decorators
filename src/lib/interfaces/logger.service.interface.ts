@@ -1,4 +1,4 @@
 export interface ILoggerService {
-  log(string): Promise<void>;
-  error(string): Promise<void>;
+  log(str: string): Promise<void>;
+  error(str: string): Promise<void>;
 }

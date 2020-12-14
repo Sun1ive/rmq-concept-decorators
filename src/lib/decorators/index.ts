@@ -24,14 +24,14 @@ interface AssertExchange {
 }
 
 interface BindParams {
-  exchange: () => string;
+  exchange: string;
   queue?: string;
   queueOptions?: Options.AssertQueue;
   routingKey?: string;
   assertExchange?: AssertExchange;
 }
 interface ConsumeParams {
-  queue: () => string;
+  queue: string;
 }
 
 interface AbstractConstructor<Type = any> extends Function {
@@ -66,22 +66,35 @@ export function RabbitMQInstance() {
           const persisted = persistMetadata(cls.prototype, bind_key);
           for (const key in persisted) {
             try {
-              const meta: BindParams | undefined = persisted[key];
-              logger({ meta, key });
-              let { queue: queueName, exchange, routingKey, queueOptions, assertExchange } = meta;
+              const meta: undefined | (() => BindParams) = persisted[key];
+              if (typeof meta === "function") {
+                logger({ meta: meta(), key });
+                let {
+                  queue = "",
+                  exchange,
+                  routingKey = "",
+                  queueOptions,
+                  assertExchange,
+                } = meta();
+                logger({ queue, routingKey });
 
-              if (assertExchange) {
-                await this.channel.assertExchange(
-                  exchange(),
-                  assertExchange.exchangeType,
-                  assertExchange.exchangeOptions
+                if (assertExchange) {
+                  await this.channel.assertExchange(
+                    exchange,
+                    assertExchange.exchangeType,
+                    assertExchange.exchangeOptions
+                  );
+                }
+
+                const { queue: assertedQueue } = await this.channel.assertQueue(
+                  queue,
+                  queueOptions
                 );
-              }
 
-              const { queue } = await this.channel.assertQueue(queueName, queueOptions);
-              await this.channel.bindQueue(queue, exchange(), routingKey);
-              if (typeof this[key] === "function") {
-                await this.channel.consume(queue, this[key].bind(this));
+                await this.channel.bindQueue(queue, exchange, routingKey ?? "");
+                if (typeof (this as any)[key] === "function") {
+                  await this.channel.consume(assertedQueue, (this as any)[key].bind(this));
+                }
               }
             } catch (error) {
               logger(format("Bind Error", error));
@@ -90,10 +103,13 @@ export function RabbitMQInstance() {
 
           const consumePersisted = persistMetadata(cls.prototype, consume_key);
           for (const key in consumePersisted) {
-            const meta: ConsumeParams | undefined = consumePersisted[key];
+            const meta: undefined | (() => ConsumeParams) = consumePersisted[key];
             try {
-              if (typeof this[key] === "function") {
-                await this.channel.consume(meta.queue(), this[key].bind(this));
+              if (typeof meta === "function") {
+                let { queue } = meta();
+                if (typeof (this as any)[key] === "function") {
+                  await this.channel.consume(queue, (this as any)[key].bind(this));
+                }
               }
             } catch (error) {
               logger(format("Consume error", error));
@@ -105,28 +121,16 @@ export function RabbitMQInstance() {
   };
 }
 
-export function Bind({
-  queue = "",
-  queueOptions,
-  exchange,
-  assertExchange,
-  routingKey = "",
-}: BindParams): DefinedPropertyDecorator<string, Function> {
+export function Bind(params: () => BindParams): DefinedPropertyDecorator<string, Function> {
   return (target, key, descriptor) => {
-    const metadata = persistMetadata(target, bind_key) as Record<string, BindParams>;
-    metadata[key as string] = {
-      exchange,
-      queue,
-      routingKey,
-      queueOptions,
-      assertExchange,
-    };
+    const metadata = persistMetadata(target, bind_key) as Record<string, () => BindParams>;
+    metadata[key as string] = params;
   };
 }
 
-export function Consume(params: ConsumeParams): DefinedPropertyDecorator<string, Function> {
+export function Consume(params: () => ConsumeParams): DefinedPropertyDecorator<string, Function> {
   return (target, prop, descriptor) => {
-    const metadata = persistMetadata(target, consume_key) as Record<string, ConsumeParams>;
+    const metadata = persistMetadata(target, consume_key) as Record<string, () => ConsumeParams>;
     metadata[prop as string] = params;
   };
 }
