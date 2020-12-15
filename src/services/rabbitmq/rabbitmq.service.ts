@@ -1,8 +1,8 @@
 require("dotenv").config();
 import { Message } from "amqplib";
+import { ConfigType } from "../..";
 import { AbstractRMQ } from "../../lib";
 import { RabbitMQInstance, Bind, Consume } from "../../lib/decorators";
-import { Config } from "../../lib/interfaces/config.service.interface";
 
 class Logger {
   async log(log: string) {
@@ -11,28 +11,15 @@ class Logger {
   async error(str: string) {}
 }
 
-const c = {
-  getConfig() {
-    return {
-      rabbitHeartbeat: 30,
-      rabbitHost: process.env.RABBITMQ_HOST,
-      rabbitPassword: process.env.RABBITMQ_PASSWORD,
-      rabbitPort: +process.env.RABBITMQ_PORT!,
-      rabbitUser: process.env.RABBITMQ_USER,
-      rabbitVHost: process.env.RABBITMQ_VHOST,
-    } as Config;
-  },
-};
-
 @RabbitMQInstance()
 export class RabbiMQService extends AbstractRMQ {
-  public constructor(private readonly _config: any) {
-    super(new Logger(), c);
+  public constructor(private readonly _config: ConfigType) {
+    super(new Logger(), _config);
   }
 
-  @Bind(() => ({
-    exchange: "d-" + process.env.RABBITMQ_EXCHANGE,
-    routingKey: [""],
+  @Bind((instance: RabbiMQService) => ({
+    exchange: `d-${instance._config.getConfig().rabbitExchange}`,
+    routingKeys: [""],
     assertExchange: {
       exchangeType: "direct",
     },
@@ -54,11 +41,11 @@ export class RabbiMQService extends AbstractRMQ {
     }
   }
 
-  @Bind(() => ({
-    exchange: process.env.RABBITMQ_EXCHANGE as string,
-    routingKey: [""],
+  @Bind((instance: RabbiMQService) => ({
+    exchange: instance._config.getConfig().rabbitExchange,
+    routingKeys: ["#"],
     assertExchange: {
-      exchangeType: "fanout",
+      exchangeType: "topic",
     },
     queueOptions: {
       autoDelete: true,
@@ -78,7 +65,7 @@ export class RabbiMQService extends AbstractRMQ {
     }
   }
 
-  @Consume(() => ({ queue: "test" }))
+  @Consume(() => ({ queue: "test", assertQueue: { autoDelete: true } }))
   public consumeHandler(msg: Message | null) {
     if (!msg) {
       return;
