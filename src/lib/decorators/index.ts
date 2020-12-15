@@ -1,8 +1,6 @@
 import { Options } from "amqplib/properties";
-import { format } from "util";
 import debug from "debug";
 import type { AbstractRMQ } from "../abstract/abstract.rabbitmq";
-import { InspectorNotification } from "inspector";
 
 export const bind_key = Symbol("BIND_KEY");
 export const consume_key = Symbol("CONSUME_KEY");
@@ -89,7 +87,7 @@ export function RabbitMQInstance<
                 (this as any)[key] = assertedExchange;
               }
             } catch (error) {
-              logger(format("AssertExchange error", error));
+              logger("AssertExchange error", error);
             }
           }
 
@@ -104,7 +102,7 @@ export function RabbitMQInstance<
                 (this as any)[key] = assertedQueue;
               }
             } catch (error) {
-              logger(format("AssertQueue error", error));
+              logger("AssertQueue error", error);
             }
           }
 
@@ -143,7 +141,7 @@ export function RabbitMQInstance<
                 }
               }
             } catch (error) {
-              logger(format("Bind Error", error));
+              logger("Bind Error", error);
             }
           }
 
@@ -161,7 +159,7 @@ export function RabbitMQInstance<
                 }
               }
             } catch (error) {
-              logger(format("Consume error", error));
+              logger("Consume error", error);
             }
           }
         });

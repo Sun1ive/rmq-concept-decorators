@@ -9,6 +9,7 @@ import debug from "debug";
 const log = debug("@temabit/abstract-rmq");
 
 export abstract class AbstractRMQ extends EventEmitter {
+  private _attempt: number = 0;
   public channel: Channel;
   public connection: Connection;
   public terminated: boolean = false;
@@ -24,8 +25,9 @@ export abstract class AbstractRMQ extends EventEmitter {
 
   private readonly _reconnect = async () => {
     if (!this.terminated && !this.timeout) {
-      this.logger.log(`[${AbstractRMQ.name}]: Reconnect attempt`);
+      this.logger.log(`[${AbstractRMQ.name}]: Reconnect attempt ${this._attempt}`);
       this.timeout = setTimeout(async () => {
+        this._attempt += 1;
         this.timeout = undefined;
         await this.connect();
       }, 5000);
@@ -43,7 +45,7 @@ export abstract class AbstractRMQ extends EventEmitter {
         rabbitUser,
         rabbitVHost,
       } = this.config.getConfig();
-      log(this.config.getConfig());
+      this.logger.log({ config: this.config.getConfig() });
 
       this.connection = await connect({
         hostname: rabbitHost,
@@ -69,7 +71,6 @@ export abstract class AbstractRMQ extends EventEmitter {
       });
 
       const events = ["blocked", "unblocked", "error", "drain", "return"];
-
       events.forEach((event) => {
         this.channel.on(event, (...args: any[]) => {
           this.logger.error(`[Channel ${event}]: ARGS: ${args}`);
