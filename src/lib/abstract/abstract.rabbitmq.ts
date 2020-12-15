@@ -23,8 +23,8 @@ export abstract class AbstractRMQ extends EventEmitter {
   }
 
   private readonly _reconnect = async () => {
-    this.logger.log(`[${AbstractRMQ.name}]: Reconnect attempt`);
     if (!this.terminated && !this.timeout) {
+      this.logger.log(`[${AbstractRMQ.name}]: Reconnect attempt`);
       this.timeout = setTimeout(async () => {
         this.timeout = undefined;
         await this.connect();
