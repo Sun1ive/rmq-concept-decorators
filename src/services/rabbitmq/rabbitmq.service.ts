@@ -2,7 +2,7 @@ require("dotenv").config();
 import { Message } from "amqplib";
 import { ConfigType } from "../..";
 import { AbstractRMQ } from "../../lib";
-import { RabbitMQInstance, Bind, Consume } from "../../lib/decorators";
+import { RabbitMQInstance, Bind, Consume, AssertExchange } from "../../lib/decorators";
 
 class Logger {
   async log(log: string) {
@@ -16,6 +16,17 @@ export class RabbiMQService extends AbstractRMQ {
   public constructor(private readonly _config: ConfigType) {
     super(new Logger(), _config);
   }
+
+  @AssertExchange((instance: RabbiMQService) => {
+    const { rabbitExchange } = instance._config.getConfig();
+
+    return {
+      exchange: `alt_${rabbitExchange}`,
+      exchangeType: "topic",
+      deleteBeforeAssert: true,
+    };
+  })
+  public readonly _exchange: any;
 
   @Bind((instance: RabbiMQService) => ({
     exchange: `d-${instance._config.getConfig().rabbitExchange}`,
@@ -41,17 +52,24 @@ export class RabbiMQService extends AbstractRMQ {
     }
   }
 
-  @Bind((instance: RabbiMQService) => ({
-    exchange: instance._config.getConfig().rabbitExchange,
-    routingKeys: ["#"],
-    assertExchange: {
-      exchangeType: "topic",
-    },
-    queueOptions: {
-      autoDelete: true,
-      durable: false,
-    },
-  }))
+  @Bind((instance: RabbiMQService) => {
+    const { rabbitExchange } = instance._config.getConfig();
+    return {
+      exchange: rabbitExchange,
+      routingKeys: ["#"],
+      assertExchange: {
+        exchangeType: "topic",
+        deleteBeforeAssert: true,
+        exchangeOptions: {
+          alternateExchange: `alt_${rabbitExchange}`,
+        },
+      },
+      queueOptions: {
+        autoDelete: true,
+        durable: false,
+      },
+    };
+  })
   public wpHandle(msg: Message | null) {
     if (!msg) {
       return;

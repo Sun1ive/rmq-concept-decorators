@@ -22,6 +22,7 @@ export type DefinedPropertyDecorator<
 interface ExchangeOptions {
   exchangeType: "direct" | "topic" | "fanout" | "headers";
   exchangeOptions?: Options.AssertExchange;
+  deleteBeforeAssert?: boolean;
 }
 
 interface AssertExchangeParams extends ExchangeOptions {
@@ -63,6 +64,14 @@ interface Constructor<Type = any, Args extends any[] = any[]> extends AbstractCo
   new (...args: Args): Type;
 }
 
+/**
+ *
+ *
+ * @export
+ * @template Target
+ * @template Instance
+ * @returns
+ */
 export function RabbitMQInstance<
   Target extends Constructor<AbstractRMQ>,
   Instance extends InstanceType<Target>
@@ -72,18 +81,26 @@ export function RabbitMQInstance<
       constructor(...args: any[]) {
         super(...args);
         this.on(rmqEvent, async () => {
-          const assertPersisted = persistMetadata(cls.prototype, assert_exchange_key);
-          for (const key in assertPersisted) {
+          const assertExchangePersisted = persistMetadata(cls.prototype, assert_exchange_key);
+          for (const key in assertExchangePersisted) {
             const meta: undefined | ((instance: Instance) => AssertExchangeParams) =
-              assertPersisted[key];
+              assertExchangePersisted[key];
             try {
               if (typeof meta === "function") {
-                const { exchange, exchangeType, exchangeOptions } = meta(this as any);
+                const { exchange, exchangeType, exchangeOptions, deleteBeforeAssert } = meta(
+                  this as any
+                );
+
+                if (deleteBeforeAssert) {
+                  await this.channel.deleteExchange(exchange);
+                }
+
                 const assertedExchange = await this.channel.assertExchange(
                   exchange,
                   exchangeType,
                   exchangeOptions
                 );
+
                 (this as any)[key] = assertedExchange;
               }
             } catch (error) {
@@ -121,6 +138,10 @@ export function RabbitMQInstance<
                 logger({ meta: meta(this as any), key });
 
                 if (assertExchange) {
+                  if (assertExchange.deleteBeforeAssert) {
+                    await this.channel.deleteExchange(exchange);
+                  }
+
                   await this.channel.assertExchange(
                     exchange,
                     assertExchange.exchangeType,
@@ -181,7 +202,7 @@ export type BindingDecorator<Target extends Object> = <Key extends string | symb
 export function Bind<InstanceType extends AbstractRMQ>(
   params: (instance: InstanceType) => BindParams
 ): BindingDecorator<InstanceType> {
-  return (target, key, descriptor) => {
+  return (target, key) => {
     const metadata = persistMetadata(target, bind_key) as Record<
       string,
       (instance: InstanceType) => BindParams
@@ -194,7 +215,7 @@ export function Bind<InstanceType extends AbstractRMQ>(
 export function Consume<InstanceType extends AbstractRMQ>(
   params: (instance: InstanceType) => ConsumeParams
 ): BindingDecorator<InstanceType> {
-  return (target, prop, descriptor) => {
+  return (target, prop) => {
     const metadata = persistMetadata(target, consume_key) as Record<
       string,
       (instance: InstanceType) => ConsumeParams
