@@ -6,7 +6,7 @@ import { IConfigService } from "../interfaces/config.service.interface";
 import { ILoggerService } from "../interfaces/logger.service.interface";
 import debug from "debug";
 
-const log = debug("@temabit/abstract-rmq");
+const TIMEOUT = 5000;
 
 export abstract class AbstractRMQ extends EventEmitter {
   private _attempt: number = 0;
@@ -26,11 +26,12 @@ export abstract class AbstractRMQ extends EventEmitter {
   private readonly _reconnect = async () => {
     if (!this.terminated && !this.timeout) {
       this.logger.log(`[${AbstractRMQ.name}]: Reconnect attempt ${this._attempt}`);
+
       this.timeout = setTimeout(async () => {
         this._attempt += 1;
         this.timeout = undefined;
         await this.connect();
-      }, 5000);
+      }, TIMEOUT);
     }
   };
 
@@ -46,6 +47,9 @@ export abstract class AbstractRMQ extends EventEmitter {
         rabbitVHost,
       } = this.config.getConfig();
       this.logger.log({ config: this.config.getConfig() });
+      if (this.connection) {
+        await this.connection.close();
+      }
 
       this.connection = await connect({
         hostname: rabbitHost,
@@ -55,6 +59,9 @@ export abstract class AbstractRMQ extends EventEmitter {
         username: rabbitUser,
         vhost: rabbitVHost,
         protocol: "amqp",
+      });
+      this.connection.on("error", (err) => {
+        this.logger.log(format("[Connection error]:", err));
       });
 
       this.channel = await this.connection.createConfirmChannel();
@@ -66,10 +73,6 @@ export abstract class AbstractRMQ extends EventEmitter {
           this._reconnect();
         });
       });
-      this.connection.on("error", (err) => {
-        this.logger.log(format("[Connection error]:", err));
-      });
-
       const events = ["blocked", "unblocked", "error", "drain", "return"];
       events.forEach((event) => {
         this.channel.on(event, (...args: any[]) => {
@@ -88,15 +91,23 @@ export abstract class AbstractRMQ extends EventEmitter {
   }
 
   public async dispose(): Promise<void> {
-    try {
-      this.logger.log(`[${AbstractRMQ.name}]: Terminating`);
-      this.terminated = true;
-      if (this.timeout) {
-        clearTimeout(this.timeout);
-        this.timeout = undefined;
-      }
+    this.logger.log(`[${AbstractRMQ.name}]: Terminating`);
+    this.terminated = true;
 
-      await this.channel.close();
+    if (this.timeout) {
+      clearTimeout(this.timeout);
+      this.timeout = undefined;
+    }
+
+    if (this.channel) {
+      try {
+        await this.channel.close();
+      } catch (error) {
+        this.logger.log(format("Dispose close channel error", error));
+      }
+    }
+
+    try {
       await this.connection.close();
     } catch (error) {
       this.logger.log(format("Dispose error", error));

@@ -40,18 +40,19 @@ async function start() {
 
     const rmq = new RabbiMQService(config);
 
+    const http = app.listen(4411, () => console.log("Server running at port 4411"));
+
     const onCleanUp = async (sig: string) => {
       console.log("Process exit by %s", sig);
       process.off("SIGINT", onCleanUp);
 
       await rmq.dispose();
+      http.close(console.error);
     };
-
-    app.listen(4411, () => console.log("Server running at port 4411"));
 
     process.on("SIGINT", onCleanUp);
   } catch (error) {
-    console.log(error);
+    console.error(error);
   }
 }
 start();
