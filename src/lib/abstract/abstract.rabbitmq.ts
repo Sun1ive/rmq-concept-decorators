@@ -1,15 +1,17 @@
 import { Channel, connect, Connection } from "amqplib";
+import os from "os";
 import { EventEmitter } from "events";
 import { format } from "util";
 import { rmqEvent } from "../decorators";
 import { IConfigService } from "../interfaces/config.service.interface";
 import { ILoggerService } from "../interfaces/logger.service.interface";
-import debug from "debug";
 
 const TIMEOUT = 5000;
 
-export abstract class AbstractRMQ extends EventEmitter {
+export abstract class AbstractRMQ {
   private _attempt: number = 0;
+
+  public readonly eventEmitter: EventEmitter = new EventEmitter();
   public channel: Channel;
   public connection: Connection;
   public terminated: boolean = false;
@@ -19,7 +21,6 @@ export abstract class AbstractRMQ extends EventEmitter {
     private readonly logger: ILoggerService,
     private readonly config: IConfigService
   ) {
-    super();
     this.connect();
   }
 
@@ -37,7 +38,6 @@ export abstract class AbstractRMQ extends EventEmitter {
 
   public async connect(): Promise<void> {
     try {
-      this.logger.log(format(AbstractRMQ.name, "Connecting"));
       const {
         rabbitHeartbeat,
         rabbitHost,
@@ -46,7 +46,7 @@ export abstract class AbstractRMQ extends EventEmitter {
         rabbitUser,
         rabbitVHost,
       } = this.config.getConfig();
-      this.logger.log({ config: this.config.getConfig() });
+      this.logger.log({ config: format(this.config.getConfig()) });
       if (this.connection) {
         await this.connection.close();
       }
@@ -60,29 +60,26 @@ export abstract class AbstractRMQ extends EventEmitter {
         vhost: rabbitVHost,
         protocol: "amqp",
       });
-      this.connection.on("error", (err) => {
+
+      this.connection.on("error", async (err) => {
         this.logger.log(format("[Connection error]:", err));
+        await this._reconnect();
       });
 
       this.channel = await this.connection.createConfirmChannel();
       await this.channel.prefetch(1);
 
-      this.channel.on("close", (reason) => {
-        this.logger.log(format(`[Channel closed]: reason ${reason}`));
-        process.nextTick(() => {
-          this._reconnect();
-        });
+      this.logger.log({
+        [AbstractRMQ.name]: format({
+          connected: true,
+          host: rabbitHost,
+          vhost: rabbitVHost,
+          user: rabbitUser,
+          pid: process.pid,
+          hostname: os.hostname(),
+        }),
       });
-      const events = ["blocked", "unblocked", "error", "drain", "return"];
-      events.forEach((event) => {
-        this.channel.on(event, (...args: any[]) => {
-          this.logger.error(`[Channel ${event}]: ARGS: ${args}`);
-        });
-      });
-
-      this.logger.log(format(AbstractRMQ.name, "Connected"));
-
-      this.emit(rmqEvent, true);
+      this.eventEmitter.emit(rmqEvent, true);
     } catch (error) {
       this.logger.log(format("On Connect error", error));
 
@@ -99,12 +96,10 @@ export abstract class AbstractRMQ extends EventEmitter {
       this.timeout = undefined;
     }
 
-    if (this.channel) {
-      try {
-        await this.channel.close();
-      } catch (error) {
-        this.logger.log(format("Dispose close channel error", error));
-      }
+    try {
+      await this.channel.close();
+    } catch (error) {
+      this.logger.log(format("Dispose close channel error", error));
     }
 
     try {

@@ -80,7 +80,7 @@ export function RabbitMQInstance<
     return class extends cls {
       constructor(...args: any[]) {
         super(...args);
-        this.on(rmqEvent, async () => {
+        this.eventEmitter.on(rmqEvent, async () => {
           const assertExchangePersisted = persistMetadata(cls.prototype, assert_exchange_key);
           for (const key in assertExchangePersisted) {
             const meta: undefined | ((instance: Instance) => AssertExchangeParams) =
