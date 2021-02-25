@@ -37,20 +37,23 @@ export abstract class AbstractRMQ {
   };
 
   public async connect(): Promise<void> {
+    const {
+      rabbitHeartbeat,
+      rabbitHost,
+      rabbitPassword,
+      rabbitPort,
+      rabbitUser,
+      rabbitVHost,
+    } = this.config.getConfig();
+    this.logger.log({ config: format(this.config.getConfig()) });
     try {
-      const {
-        rabbitHeartbeat,
-        rabbitHost,
-        rabbitPassword,
-        rabbitPort,
-        rabbitUser,
-        rabbitVHost,
-      } = this.config.getConfig();
-      this.logger.log({ config: format(this.config.getConfig()) });
       if (this.connection) {
+        this.logger.log("Closing old connection...");
         await this.connection.close();
       }
+    } catch {}
 
+    try {
       this.connection = await connect({
         hostname: rabbitHost,
         port: rabbitPort,
