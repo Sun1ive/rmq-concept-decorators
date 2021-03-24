@@ -6,7 +6,8 @@
   "scripts": {
     "watch": "rimraf dist && tsc --watch",
     "dev": "LOG_ERRORS=true nodemon -w dist dist/index.js",
-    "lib": "rimraf lib/dist && tsc --watch -p tsconfig.lib.json"
+    "lib": "rimraf lib/dist && tsc -p tsconfig.lib.json",
+    "watch:lib": "rimraf lib/dist && tsc --watch -p tsconfig.lib.json"
   },
   "keywords": [],
   "author": "",

@@ -48,6 +48,7 @@ export abstract class AbstractRMQ {
     this.logger.log({ config: this.config.getConfig() });
     try {
       if (this.connection) {
+        this.connection.removeAllListeners();
         this.logger.log("Closing old connection...");
         await this.connection.close();
       }
@@ -83,7 +84,7 @@ export abstract class AbstractRMQ {
         this.logger.log(format("[Channel error]:", err));
       });
       this.channel.on("close", async (err) => {
-        this.logger.log(format("[Channel close]:", err));
+        this.logger.log(format("[Channel closed by]:", err));
       });
 
       this.logger.log({
