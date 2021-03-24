@@ -45,7 +45,7 @@ export abstract class AbstractRMQ {
       rabbitUser,
       rabbitVHost,
     } = this.config.getConfig();
-    this.logger.log({ config: format(this.config.getConfig()) });
+    this.logger.log({ config: this.config.getConfig() });
     try {
       if (this.connection) {
         this.logger.log("Closing old connection...");
@@ -68,19 +68,33 @@ export abstract class AbstractRMQ {
         this.logger.log(format("[Connection error]:", err));
         await this._reconnect();
       });
+      this.connection.on("close", async (res?: string) => {
+        this.logger.log(format("[Connection closed by reason]:", res));
+        await this._reconnect();
+      });
+      this.connection.on("blocked", async (reason) => {
+        this.logger.log(format("[Connection blocked by reason]:", reason));
+        await this._reconnect();
+      });
 
       this.channel = await this.connection.createConfirmChannel();
       await this.channel.prefetch(1);
+      this.channel.on("error", async (err) => {
+        this.logger.log(format("[Channel error]:", err));
+      });
+      this.channel.on("close", async (err) => {
+        this.logger.log(format("[Channel close]:", err));
+      });
 
       this.logger.log({
-        [AbstractRMQ.name]: format({
+        [AbstractRMQ.name]: {
           connected: true,
           host: rabbitHost,
           vhost: rabbitVHost,
           user: rabbitUser,
           pid: process.pid,
           hostname: os.hostname(),
-        }),
+        },
       });
       this.eventEmitter.emit(rmqEvent, true);
     } catch (error) {
@@ -102,13 +116,13 @@ export abstract class AbstractRMQ {
     try {
       await this.channel.close();
     } catch (error) {
-      this.logger.log(format("Dispose close channel error", error));
+      this.logger.log(format("Dispose channel error", error));
     }
 
     try {
       await this.connection.close();
     } catch (error) {
-      this.logger.log(format("Dispose error", error));
+      this.logger.log(format("Dispose connection error", error));
     }
   }
 }

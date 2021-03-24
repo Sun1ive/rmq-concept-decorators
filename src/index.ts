@@ -11,7 +11,7 @@ import { persistRegister, PROM_REGISTER } from "./decorators";
 const config = {
   getConfig() {
     return {
-      rabbitHeartbeat: 30,
+      rabbitHeartbeat: +process.env.RABBITMQ_HEARTBEAT!,
       rabbitHost: process.env.RABBITMQ_HOST,
       rabbitPassword: process.env.RABBITMQ_PASSWORD,
       rabbitPort: +process.env.RABBITMQ_PORT!,

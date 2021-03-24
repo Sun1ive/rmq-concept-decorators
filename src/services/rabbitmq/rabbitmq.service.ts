@@ -30,7 +30,7 @@ export class RabbiMQService extends AbstractRMQ {
 
   @Bind((instance: RabbiMQService) => ({
     exchange: `d-${instance._config.getConfig().rabbitExchange}`,
-    routingKeys: [""],
+    routingKeys: ["#"],
     assertExchange: {
       exchangeType: "direct",
     },
