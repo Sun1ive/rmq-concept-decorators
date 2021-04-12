@@ -215,7 +215,7 @@ function overloadDescriptor(desc: PropertyDescriptor) {
       const store = new Map();
       store.set(ALS_REQ_ID, v4());
       const params = Object.assign({}, args[0]);
-      delete params.content;
+      params.content = params.content.toString();
       store.set(ASL_REQ_PARAMS, params);
       await asyncStorage.run(store, () => {
         return originalFn.apply(this, args);
