@@ -105,7 +105,8 @@ export class RabbiMQService extends AbstractRMQ {
     try {
       this.channel.ack(msg);
       console.log("wp_handle", msg.content.toString());
-      this.test({ id: "9999" });
+      const r = this.test({ id: "9999" });
+      console.log(r);
     } catch (error) {
       console.log(error);
     }
@@ -114,6 +115,8 @@ export class RabbiMQService extends AbstractRMQ {
   @logger()
   public test(params: { id: string }) {
     console.log(params);
+
+    return 42;
   }
 
   @Consume(() => ({ queue: "test", assertQueue: { autoDelete: true } }))
@@ -124,7 +127,8 @@ export class RabbiMQService extends AbstractRMQ {
 
     try {
       this.channel.ack(msg);
-      this.test({ id: "123" });
+      const r = this.test({ id: "123" });
+      console.log(r);
     } catch (error) {
       console.log(error);
     }
