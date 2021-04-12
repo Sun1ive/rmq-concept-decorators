@@ -1,5 +1,8 @@
 import { Options } from "amqplib/properties";
+import { AsyncLocalStorage } from "async_hooks";
 import debug from "debug";
+import { format } from "util";
+import { v4 } from "uuid";
 import type { AbstractRMQ } from "../abstract/abstract.rabbitmq";
 
 export const bind_key = Symbol("BIND_KEY");
@@ -8,7 +11,12 @@ export const assert_exchange_key = Symbol("ASSERT_EXCHANGE_KEY");
 export const assert_queue_key = Symbol("ASSERT_QUEUE_KEY");
 export const rmqEvent = "RMQ_CONNECT";
 
+export const ALS_REQ_ID = "__id__";
+export const ASL_REQ_PARAMS = "__req:params__";
+
 const logger = debug("@temabit/rmq");
+
+export const asyncStorage = new AsyncLocalStorage<Map<string, any>>();
 
 export type DefinedPropertyDecorator<
   Name extends string | symbol = string | symbol,
@@ -199,28 +207,59 @@ export type BindingDecorator<Target extends Object> = <Key extends string | symb
     : unknown
 ) => PropertyDescriptor | void;
 
+function overloadDescriptor(desc: PropertyDescriptor) {
+  const store = new Map();
+  store.set(ALS_REQ_ID, v4());
+  const originalFn = desc.value;
+
+  if (typeof originalFn === "function") {
+    const overloaded = async function (this: any, ...args: any[]) {
+      store.set(ASL_REQ_PARAMS, args[0]);
+      await asyncStorage.run(store, () => {
+        return originalFn.apply(this, args);
+      });
+    };
+
+    return {
+      configurable: desc.configurable,
+      enumerable: desc.enumerable,
+      writable: desc.writable,
+      value: overloaded,
+    };
+  }
+}
+
 export function Bind<InstanceType extends AbstractRMQ>(
   params: (instance: InstanceType) => BindParams
 ): BindingDecorator<InstanceType> {
-  return (target, key) => {
+  return (target, key, descriptor) => {
     const metadata = persistMetadata(target, bind_key) as Record<
       string,
       (instance: InstanceType) => BindParams
     >;
 
     metadata[key as string] = params;
+
+    const overloadedDescriptor = overloadDescriptor(descriptor as PropertyDescriptor);
+    if (overloadedDescriptor) {
+      return overloadedDescriptor;
+    }
   };
 }
 
 export function Consume<InstanceType extends AbstractRMQ>(
   params: (instance: InstanceType) => ConsumeParams
 ): BindingDecorator<InstanceType> {
-  return (target, prop) => {
+  return (target, prop, descriptor) => {
     const metadata = persistMetadata(target, consume_key) as Record<
       string,
       (instance: InstanceType) => ConsumeParams
     >;
     metadata[prop as string] = params;
+    const overloadedDescriptor = overloadDescriptor(descriptor as PropertyDescriptor);
+    if (overloadedDescriptor) {
+      return overloadedDescriptor;
+    }
   };
 }
 
