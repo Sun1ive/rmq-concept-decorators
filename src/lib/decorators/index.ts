@@ -208,12 +208,12 @@ export type BindingDecorator<Target extends Object> = <Key extends string | symb
 ) => PropertyDescriptor | void;
 
 function overloadDescriptor(desc: PropertyDescriptor) {
-  const store = new Map();
-  store.set(ALS_REQ_ID, v4());
   const originalFn = desc.value;
 
   if (typeof originalFn === "function") {
     const overloaded = async function (this: any, ...args: any[]) {
+      const store = new Map();
+      store.set(ALS_REQ_ID, v4());
       store.set(ASL_REQ_PARAMS, args[0]);
       await asyncStorage.run(store, () => {
         return originalFn.apply(this, args);
