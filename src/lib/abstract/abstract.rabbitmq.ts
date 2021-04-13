@@ -44,6 +44,7 @@ export abstract class AbstractRMQ {
       rabbitPort,
       rabbitUser,
       rabbitVHost,
+      rabbitPrefetch,
     } = this.config.getConfig();
     this.logger.log({ config: this.config.getConfig() });
     try {
@@ -79,7 +80,7 @@ export abstract class AbstractRMQ {
       });
 
       this.channel = await this.connection.createConfirmChannel();
-      await this.channel.prefetch(1);
+      await this.channel.prefetch(rabbitPrefetch);
       this.channel.on("error", async (err) => {
         this.logger.log(format("[Channel error]:", err));
       });

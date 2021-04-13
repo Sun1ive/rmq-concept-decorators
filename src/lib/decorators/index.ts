@@ -1,7 +1,6 @@
 import { Options } from "amqplib/properties";
 import { AsyncLocalStorage } from "async_hooks";
 import debug from "debug";
-import { format } from "util";
 import { v4 } from "uuid";
 import type { AbstractRMQ } from "../abstract/abstract.rabbitmq";
 
@@ -239,9 +238,7 @@ export function Bind<InstanceType extends AbstractRMQ>(
       string,
       (instance: InstanceType) => BindParams
     >;
-
     metadata[key as string] = params;
-
     const overloadedDescriptor = overloadDescriptor(descriptor as PropertyDescriptor);
     if (overloadedDescriptor) {
       return overloadedDescriptor;

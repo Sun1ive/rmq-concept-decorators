@@ -5,6 +5,7 @@ export interface Config {
   readonly rabbitVHost: string;
   readonly rabbitHeartbeat: number;
   readonly rabbitPort: number;
+  readonly rabbitPrefetch: number;
 }
 
 export interface IConfigService {
