@@ -2,7 +2,7 @@ import { Channel, connect, Connection } from "amqplib";
 import os from "os";
 import { EventEmitter } from "events";
 import { format } from "util";
-import { rmqEvent } from "../decorators";
+import { RMQ_CONNECT } from "../decorators";
 import { IConfigService } from "../interfaces/config.service.interface";
 import { ILoggerService } from "../interfaces/logger.service.interface";
 
@@ -101,7 +101,7 @@ export abstract class AbstractRMQ {
           hostname: os.hostname(),
         },
       });
-      this.eventEmitter.emit(rmqEvent, true);
+      this.eventEmitter.emit(RMQ_CONNECT, true);
     } catch (error) {
       this.logger.log(format("On Connect error", error));
       this._reconnect();

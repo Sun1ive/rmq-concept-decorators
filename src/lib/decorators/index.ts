@@ -9,7 +9,7 @@ export const consume_key = Symbol("CONSUME_KEY");
 export const assert_exchange_key = Symbol("ASSERT_EXCHANGE_KEY");
 export const assert_queue_key = Symbol("ASSERT_QUEUE_KEY");
 export const READY_EVENT = "RMQ_READY";
-export const rmqEvent = "RMQ_CONNECT";
+export const RMQ_CONNECT = "RMQ_CONNECT";
 
 export const ALS_REQ_ID = "__id__";
 export const ASL_REQ_PARAMS = "__req:params__";
@@ -88,7 +88,7 @@ export function RabbitMQInstance<
     return class extends cls {
       constructor(...args: any[]) {
         super(...args);
-        this.eventEmitter.on(rmqEvent, async () => {
+        this.eventEmitter.on(RMQ_CONNECT, async () => {
           const assertExchangePersisted = persistMetadata(cls.prototype, assert_exchange_key);
           for (const key in assertExchangePersisted) {
             const meta: undefined | ((instance: Instance) => AssertExchangeParams) =
