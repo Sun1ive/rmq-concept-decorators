@@ -1,7 +1,5 @@
 import { Options } from "amqplib/properties";
-import { AsyncLocalStorage } from "async_hooks";
 import debug from "debug";
-import { v4 } from "uuid";
 import type { AbstractRMQ } from "../abstract/abstract.rabbitmq";
 
 export const bind_key = Symbol("BIND_KEY");
@@ -11,12 +9,7 @@ export const assert_queue_key = Symbol("ASSERT_QUEUE_KEY");
 export const READY_EVENT = "RMQ_READY";
 export const RMQ_CONNECT = "RMQ_CONNECT";
 
-export const ALS_REQ_ID = "__id__";
-export const ASL_REQ_PARAMS = "__req:params__";
-
 const logger = debug("@temabit/rmq");
-
-export const asyncStorage = new AsyncLocalStorage<Map<string, any>>();
 
 export type DefinedPropertyDecorator<
   Name extends string | symbol = string | symbol,
@@ -213,15 +206,8 @@ function overloadDescriptor(desc: PropertyDescriptor) {
   const originalFn = desc.value;
 
   if (typeof originalFn === "function") {
-    const overloaded = async function (this: any, ...args: any[]) {
-      const store = new Map();
-      store.set(ALS_REQ_ID, v4());
-      const params = Object.assign({}, args[0]);
-      params.content = params.content.toString();
-      store.set(ASL_REQ_PARAMS, params);
-      await asyncStorage.run(store, () => {
-        return originalFn.apply(this, args);
-      });
+    const overloaded = function (this: any, ...args: any[]) {
+      return originalFn.apply(this, args);
     };
 
     return {

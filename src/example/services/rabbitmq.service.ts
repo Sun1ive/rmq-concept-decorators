@@ -2,40 +2,13 @@ require("dotenv").config();
 import { Message } from "amqplib";
 import { ConfigType } from "../..";
 import { AbstractRMQ } from "../../lib";
-import {
-  RabbitMQInstance,
-  Bind,
-  Consume,
-  AssertExchange,
-  asyncStorage,
-  ALS_REQ_ID,
-} from "../../lib/decorators";
+import { RabbitMQInstance, Bind, Consume, AssertExchange } from "../../lib/decorators";
 
 class Logger {
   async log(log: string) {
     console.log(log);
   }
   async error(str: string) {}
-}
-
-function logger() {
-  return (target: any, prop: string, descriptor: PropertyDescriptor) => {
-    const original = descriptor.value;
-    if (typeof original === "function") {
-      const logged = function (this: any, ...args: any[]) {
-        console.log(asyncStorage.getStore());
-        const id = asyncStorage.getStore()?.get(ALS_REQ_ID);
-        const values = asyncStorage.getStore()?.values() || [];
-        for (const value of values) {
-          console.log("VALUE ", value);
-        }
-        return original.apply(this, args);
-      };
-      return {
-        value: logged,
-      };
-    }
-  };
 }
 
 @RabbitMQInstance()
@@ -105,18 +78,9 @@ export class RabbiMQService extends AbstractRMQ {
     try {
       this.channel.ack(msg);
       console.log("wp_handle", msg.content.toString());
-      const r = this.test({ id: "9999" });
-      console.log(r);
     } catch (error) {
       console.log(error);
     }
-  }
-
-  @logger()
-  public test(params: { id: string }) {
-    console.log(params);
-
-    return 42;
   }
 
   @Consume(() => ({ queue: "test", assertQueue: { autoDelete: true } }))
@@ -127,8 +91,6 @@ export class RabbiMQService extends AbstractRMQ {
 
     try {
       this.channel.ack(msg);
-      const r = this.test({ id: "123" });
-      console.log(r);
     } catch (error) {
       console.log(error);
     }
