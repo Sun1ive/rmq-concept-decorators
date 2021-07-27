@@ -24,14 +24,17 @@ export abstract class AbstractRMQ {
     this.connect();
   }
 
-  private readonly _reconnect = async () => {
+  private readonly _reconnect = () => {
     if (!this.terminated && !this.timeout) {
       this.logger.log(`[${AbstractRMQ.name}]: Reconnect attempt ${this._attempt}`);
 
       this.timeout = setTimeout(async () => {
+        const onConnect = async () => {
+          await this.connect();
+        };
         this._attempt += 1;
         this.timeout = undefined;
-        await this.connect();
+        onConnect();
       }, TIMEOUT);
     }
   };
@@ -66,25 +69,25 @@ export abstract class AbstractRMQ {
         protocol: "amqp",
       });
 
-      this.connection.on("error", async (err) => {
+      this.connection.on("error", (err) => {
         this.logger.log(format("[Connection error]:", err));
-        await this._reconnect();
+        this._reconnect();
       });
-      this.connection.on("close", async (res?: string) => {
+      this.connection.on("close", (res?: string) => {
         this.logger.log(format("[Connection closed by reason]:", res));
-        await this._reconnect();
+        this._reconnect();
       });
-      this.connection.on("blocked", async (reason) => {
+      this.connection.on("blocked", (reason) => {
         this.logger.log(format("[Connection blocked by reason]:", reason));
-        await this._reconnect();
+        this._reconnect();
       });
 
       this.channel = await this.connection.createConfirmChannel();
       await this.channel.prefetch(rabbitPrefetch);
-      this.channel.on("error", async (err) => {
+      this.channel.on("error", (err) => {
         this.logger.log(format("[Channel error]:", err));
       });
-      this.channel.on("close", async (err) => {
+      this.channel.on("close", (err) => {
         this.logger.log(format("[Channel closed by]:", err));
       });
 
@@ -101,7 +104,6 @@ export abstract class AbstractRMQ {
       this.eventEmitter.emit(rmqEvent, true);
     } catch (error) {
       this.logger.log(format("On Connect error", error));
-
       this._reconnect();
     }
   }
