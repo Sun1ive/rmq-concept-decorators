@@ -1,6 +1,6 @@
 {
-  "name": "rmq-deco",
-  "version": "0.2.2",
+  "name": "rmq-decorators",
+  "version": "0.2.3",
   "main": "index.js",
   "scripts": {
     "watch": "rimraf dist && tsc --watch",

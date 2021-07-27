@@ -1,8 +1,15 @@
 require("dotenv").config();
-import { Message } from "amqplib";
+import { Message, Replies } from "amqplib";
 import { ConfigType } from "../..";
 import { AbstractRMQ } from "../../lib";
-import { RabbitMQInstance, Bind, Consume, AssertExchange } from "../../lib/decorators";
+import {
+  RabbitMQInstance,
+  Bind,
+  Consume,
+  AssertExchange,
+  AssertQueue,
+  READY_EVENT,
+} from "../../lib/decorators";
 
 class Logger {
   async log(log: string) {
@@ -12,12 +19,21 @@ class Logger {
 }
 
 @RabbitMQInstance()
-export class RabbiMQService extends AbstractRMQ {
+export class RabbitMQService extends AbstractRMQ {
   public constructor(private readonly _config: ConfigType) {
     super(new Logger(), _config);
+
+    this.eventEmitter.on(READY_EVENT, this.init);
   }
 
-  @AssertExchange((instance: RabbiMQService) => {
+  public init() {
+    console.log("After connect hook");
+  }
+
+  @AssertQueue((instance: RabbitMQService) => ({ queue: "test" }))
+  public readonly _testQueue: Replies.AssertQueue;
+
+  @AssertExchange((instance: RabbitMQService) => {
     const { rabbitExchange } = instance._config.getConfig();
 
     return {
@@ -26,9 +42,9 @@ export class RabbiMQService extends AbstractRMQ {
       deleteBeforeAssert: true,
     };
   })
-  public readonly _exchange: any;
+  public readonly _exchange: Replies.AssertExchange;
 
-  @Bind((instance: RabbiMQService) => ({
+  @Bind((instance: RabbitMQService) => ({
     exchange: `d-${instance._config.getConfig().rabbitExchange}`,
     routingKeys: ["#"],
     assertExchange: {
@@ -52,7 +68,7 @@ export class RabbiMQService extends AbstractRMQ {
     }
   }
 
-  @Bind((instance: RabbiMQService) => {
+  @Bind((instance: RabbitMQService) => {
     const { rabbitExchange } = instance._config.getConfig();
     return {
       exchange: rabbitExchange,
@@ -83,7 +99,7 @@ export class RabbiMQService extends AbstractRMQ {
     }
   }
 
-  @Consume(() => ({ queue: "test", assertQueue: { autoDelete: true } }))
+  @Consume(() => ({ queue: "test", assertQueue: { autoDelete: false } }))
   public consumeHandler(msg: Message | null) {
     if (!msg) {
       return;

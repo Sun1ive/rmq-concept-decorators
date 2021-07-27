@@ -3,7 +3,7 @@ import "reflect-metadata";
 import cors from "cors";
 import router from "./controllers";
 import { Config } from "./lib/interfaces/config.service.interface";
-import { RabbiMQService } from "./example/services/rabbitmq.service";
+import { RabbitMQService } from "./example/services/rabbitmq.service";
 import { collectDefaultMetrics } from "prom-client";
 import { persistRegister } from "./decorators";
 
@@ -37,7 +37,7 @@ async function start() {
     app.use("/", router);
     app.use("/metrics", register.metrics);
 
-    const rmq = new RabbiMQService(config);
+    const rmq = new RabbitMQService(config);
 
     const http = app.listen(4411, () => console.log("Server running at port 4411"));
 
