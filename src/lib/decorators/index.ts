@@ -8,6 +8,7 @@ export const bind_key = Symbol("BIND_KEY");
 export const consume_key = Symbol("CONSUME_KEY");
 export const assert_exchange_key = Symbol("ASSERT_EXCHANGE_KEY");
 export const assert_queue_key = Symbol("ASSERT_QUEUE_KEY");
+export const READY_EVENT = "RMQ_READY";
 export const rmqEvent = "RMQ_CONNECT";
 
 export const ALS_REQ_ID = "__id__";
@@ -190,6 +191,8 @@ export function RabbitMQInstance<
               logger("Consume error", error);
             }
           }
+
+          this.eventEmitter.emit(READY_EVENT, true);
         });
       }
     };
