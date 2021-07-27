@@ -2,11 +2,10 @@ import express from "express";
 import "reflect-metadata";
 import cors from "cors";
 import router from "./controllers";
-import { Registry } from "prom-client";
 import { Config } from "./lib/interfaces/config.service.interface";
-import { RabbiMQService } from "./services/rabbitmq/rabbitmq.service";
+import { RabbitMQService } from "./example/services/rabbitmq.service";
 import { collectDefaultMetrics } from "prom-client";
-import { persistRegister, PROM_REGISTER } from "./decorators";
+import { persistRegister } from "./decorators";
 
 const config = {
   getConfig() {
@@ -38,7 +37,7 @@ async function start() {
     app.use("/", router);
     app.use("/metrics", register.metrics);
 
-    const rmq = new RabbiMQService(config);
+    const rmq = new RabbitMQService(config);
 
     const http = app.listen(4411, () => console.log("Server running at port 4411"));
 

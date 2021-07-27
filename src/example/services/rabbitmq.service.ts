@@ -1,5 +1,5 @@
 require("dotenv").config();
-import { Message } from "amqplib";
+import { Message, Replies } from "amqplib";
 import { ConfigType } from "../..";
 import { AbstractRMQ } from "../../lib";
 import {
@@ -7,8 +7,8 @@ import {
   Bind,
   Consume,
   AssertExchange,
-  asyncStorage,
-  ALS_REQ_ID,
+  AssertQueue,
+  READY_EVENT,
 } from "../../lib/decorators";
 
 class Logger {
@@ -18,33 +18,22 @@ class Logger {
   async error(str: string) {}
 }
 
-function logger() {
-  return (target: any, prop: string, descriptor: PropertyDescriptor) => {
-    const original = descriptor.value;
-    if (typeof original === "function") {
-      const logged = function (this: any, ...args: any[]) {
-        console.log(asyncStorage.getStore());
-        const id = asyncStorage.getStore()?.get(ALS_REQ_ID);
-        const values = asyncStorage.getStore()?.values() || [];
-        for (const value of values) {
-          console.log("VALUE ", value);
-        }
-        return original.apply(this, args);
-      };
-      return {
-        value: logged,
-      };
-    }
-  };
-}
-
 @RabbitMQInstance()
-export class RabbiMQService extends AbstractRMQ {
+export class RabbitMQService extends AbstractRMQ {
   public constructor(private readonly _config: ConfigType) {
     super(new Logger(), _config);
+
+    this.eventEmitter.on(READY_EVENT, this.init);
   }
 
-  @AssertExchange((instance: RabbiMQService) => {
+  public init() {
+    console.log("After connect hook");
+  }
+
+  @AssertQueue((instance: RabbitMQService) => ({ queue: "test" }))
+  public readonly _testQueue: Replies.AssertQueue;
+
+  @AssertExchange((instance: RabbitMQService) => {
     const { rabbitExchange } = instance._config.getConfig();
 
     return {
@@ -53,9 +42,9 @@ export class RabbiMQService extends AbstractRMQ {
       deleteBeforeAssert: true,
     };
   })
-  public readonly _exchange: any;
+  public readonly _exchange: Replies.AssertExchange;
 
-  @Bind((instance: RabbiMQService) => ({
+  @Bind((instance: RabbitMQService) => ({
     exchange: `d-${instance._config.getConfig().rabbitExchange}`,
     routingKeys: ["#"],
     assertExchange: {
@@ -79,7 +68,7 @@ export class RabbiMQService extends AbstractRMQ {
     }
   }
 
-  @Bind((instance: RabbiMQService) => {
+  @Bind((instance: RabbitMQService) => {
     const { rabbitExchange } = instance._config.getConfig();
     return {
       exchange: rabbitExchange,
@@ -105,21 +94,12 @@ export class RabbiMQService extends AbstractRMQ {
     try {
       this.channel.ack(msg);
       console.log("wp_handle", msg.content.toString());
-      const r = this.test({ id: "9999" });
-      console.log(r);
     } catch (error) {
       console.log(error);
     }
   }
 
-  @logger()
-  public test(params: { id: string }) {
-    console.log(params);
-
-    return 42;
-  }
-
-  @Consume(() => ({ queue: "test", assertQueue: { autoDelete: true } }))
+  @Consume(() => ({ queue: "test", assertQueue: { autoDelete: false } }))
   public consumeHandler(msg: Message | null) {
     if (!msg) {
       return;
@@ -127,8 +107,6 @@ export class RabbiMQService extends AbstractRMQ {
 
     try {
       this.channel.ack(msg);
-      const r = this.test({ id: "123" });
-      console.log(r);
     } catch (error) {
       console.log(error);
     }
