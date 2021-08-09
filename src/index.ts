@@ -4,8 +4,6 @@ import cors from "cors";
 import router from "./controllers";
 import { Config } from "./lib/interfaces/config.service.interface";
 import { RabbitMQService } from "./example/services/rabbitmq.service";
-import { collectDefaultMetrics } from "prom-client";
-import { persistRegister } from "./decorators";
 
 const config = {
   getConfig() {
@@ -26,26 +24,22 @@ export type ConfigType = typeof config;
 async function start() {
   try {
     const app = express();
-
-    const register = persistRegister();
-
-    collectDefaultMetrics({ register });
-
+    app.get("/", (req, res) => res.json("hello"));
     app.use(cors());
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
     app.use("/", router);
-    app.use("/metrics", register.metrics);
 
     const rmq = new RabbitMQService(config);
 
-    const http = app.listen(4411, () => console.log("Server running at port 4411"));
+    const http = app.listen(4411, "127.0.0.1", () => console.log("Server running at port 4411"));
 
     const onCleanUp = async (sig: string) => {
       console.log("Process exit by %s", sig);
       process.off("SIGINT", onCleanUp);
-
       await rmq.dispose();
+      console.log("closing");
+
       http.close(console.error);
     };
 

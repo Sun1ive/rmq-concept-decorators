@@ -15,7 +15,9 @@ class Logger {
   async log(log: string) {
     console.log(log);
   }
-  async error(str: string) {}
+  async error(str: string) {
+    console.error("err", str);
+  }
 }
 
 @RabbitMQInstance()
@@ -110,9 +112,5 @@ export class RabbitMQService extends AbstractRMQ {
     } catch (error) {
       console.log(error);
     }
-  }
-
-  public async dispose() {
-    await super.dispose();
   }
 }
