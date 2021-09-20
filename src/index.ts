@@ -1,11 +1,10 @@
+import dotenv from "dotenv";
 import express from "express";
 import "reflect-metadata";
 import cors from "cors";
 import router from "./controllers";
 import { Config } from "./lib/interfaces/config.service.interface";
 import { RabbitMQService } from "./example/services/rabbitmq.service";
-import { collectDefaultMetrics } from "prom-client";
-import { persistRegister } from "./decorators";
 
 const config = {
   getConfig() {
@@ -24,18 +23,14 @@ const config = {
 export type ConfigType = typeof config;
 
 async function start() {
+  dotenv.config();
   try {
     const app = express();
-
-    const register = persistRegister();
-
-    collectDefaultMetrics({ register });
 
     app.use(cors());
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
     app.use("/", router);
-    app.use("/metrics", register.metrics);
 
     const rmq = new RabbitMQService(config);
 

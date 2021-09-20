@@ -50,13 +50,11 @@ export abstract class AbstractRMQ {
       rabbitPrefetch,
     } = this.config.getConfig();
     this.logger.log({ config: this.config.getConfig() });
-    try {
-      if (this.connection) {
-        this.connection.removeAllListeners();
-        this.logger.log("Closing old connection...");
-        await this.connection.close();
-      }
-    } catch {}
+    if (this.connection) {
+      this.connection.removeAllListeners();
+      this.logger.log("Closing old connection...");
+      await this.connection.close().catch(() => ({}));
+    }
 
     try {
       this.connection = await connect({
