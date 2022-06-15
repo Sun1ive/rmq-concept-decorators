@@ -1,5 +1,5 @@
 import type { EventEmitter } from "events";
-import { Channel, Connection } from "amqplib";
+import type { Channel, Connection } from "amqplib";
 
 export interface AbstractRMQService extends EventEmitter {
   connect(): Promise<void>;

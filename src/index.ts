@@ -15,7 +15,8 @@ const config = {
       rabbitPort: +process.env.RABBITMQ_PORT!,
       rabbitUser: process.env.RABBITMQ_USER,
       rabbitVHost: process.env.RABBITMQ_VHOST,
-      rabbitExchange: process.env.RABBITMQ_EXCHANGE,
+      rabbitExchange: process.env.RABBITMQ_EXCHANGE!,
+      rabbitPrefetch: +process.env.RABBITMQ_PREFECTH!,
     } as Config & { rabbitExchange: string };
   },
 } as const;
@@ -23,8 +24,10 @@ const config = {
 export type ConfigType = typeof config;
 
 async function start() {
-  dotenv.config();
+  // See .env.example
+  dotenv.config({ path: ".env.development" });
   try {
+    const PORT = parseInt(process.env.PORT || "4411", 10);
     const app = express();
 
     app.use(cors());
@@ -34,7 +37,7 @@ async function start() {
 
     const rmq = new RabbitMQService(config);
 
-    const http = app.listen(4411, () => console.log("Server running at port 4411"));
+    const http = app.listen(PORT, () => console.log("Server running at port ", PORT));
 
     const onCleanUp = async (sig: string) => {
       console.log("Process exit by %s", sig);

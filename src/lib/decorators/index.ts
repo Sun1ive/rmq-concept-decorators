@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { Options } from "amqplib/properties";
 import debug from "debug";
 import type { AbstractRMQ } from "../abstract/abstract.rabbitmq";

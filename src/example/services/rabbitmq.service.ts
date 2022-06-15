@@ -11,17 +11,10 @@ import {
   READY_EVENT,
 } from "../../lib/decorators";
 
-class Logger {
-  async log(log: string) {
-    console.log(log);
-  }
-  async error(str: string) {}
-}
-
 @RabbitMQInstance()
 export class RabbitMQService extends AbstractRMQ {
   public constructor(private readonly _config: ConfigType) {
-    super(new Logger(), _config);
+    super(_config);
 
     this.eventEmitter.on(READY_EVENT, this.init);
   }
