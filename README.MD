@@ -11,10 +11,10 @@ First of all extends your class from `AbstractRMQ` class and decorate your class
 @RabbitMQInstance()
 class MyService extends AbstractRMQ {
   public constructor(
-    public readonly logger: ILoggerService,
     public readonly config: IConfigService
+    public readonly logger: ILoggerService,
   ) {
-    super(logger, config)
+    super(config, logger)
   }
 }
 
